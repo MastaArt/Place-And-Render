@@ -124,7 +124,7 @@ fn resolvePaths f =
 	ATSOps.Visible = false	
 )
 
-fn toggleUI r enabled: false skip: 4 =
+fn toggleUI r enabled: false skip: 0 =
 (
 	for i in 1 to r.controls.count do 
 	(	
@@ -134,6 +134,124 @@ fn toggleUI r enabled: false skip: 4 =
 		) else (
 			r.controls[i].enabled = enabled
 		)		
+	)
+)
+
+global rShowLog
+fn showLog m title:"Log" height: 295 width: 260 =
+(
+	
+	try(DestroyDialog rShowLog)catch()	
+	global szStat = m
+	global iWidth = width - 2
+	global iHeight = height - 35
+	
+	rollout rShowLog title
+	(		
+		dotNetControl edtStat "System.Windows.Forms.Textbox" width: iWidth height: iHeight align:#center pos: [1, 1]
+				
+		dotNetControl btnCloseLog "System.Windows.Forms.Button" height: 25 width: 70 align: #right 
+		
+		fn initDotNet =
+		(
+			initTextBox edtStat	
+			btnCloseLog.text = "Close"
+						
+			btnCloseLog.flatStyle = btnCloseLog.flatStyle.Popup 
+		)
+		
+		on btnCloseLog Click do try(DestroyDialog rShowLog)catch()
+		on rShowLog open do 
+		(
+			initDotNet()
+			edtStat.text = szStat			
+		)
+			
+	)
+
+	createDialog rShowLog width height
+)
+
+struct placeModel 
+(	
+	fn placeFurnPos m h =
+	(
+		hw = h.width/2
+		hl = h.length/2	
+		a = h.pivotAligment
+		
+		bBox = nodeGetBoundingBox m m.transform
+		mSize =(bBox[2] - bBox[1])/2
+		
+		newPos = [0,0,0]
+		
+		case a of
+		(
+			1: (
+				newPos.x = (hw - mSize.x)
+				newPos.y = -(hl - mSize.y)
+			)
+			2: (
+				newPos.x = 0
+				newPos.y = -(hl - mSize.y)
+			)
+			3: (
+				newPos.x = -(hw - mSize.x)
+				newPos.y = -(hl - mSize.y)
+			)		
+			4: (
+				newPos.x = (hw - mSize.x)
+				newPos.y = 0
+			)
+			6: (
+				newPos.x = -(hw - mSize.x)
+				newPos.y = 0
+			)	
+			7: (
+				newPos.x = (hw - mSize.x)
+				newPos.y = (hl - mSize.y)
+			)
+			8: (
+				newPos.x = 0
+				newPos.y = (hl - mSize.y)
+			)
+			9: (
+				newPos.x = -(hw - mSize.x)
+				newPos.y = (hl - mSize.y)
+			)	
+			default: (
+				newPos.x = 0
+				newPos.y = 0
+			)
+		)
+		
+		m.transform = h.transform 		
+		in coordsys m.transform move m newPos		
+	),	
+	
+	fn getObjectHead s =
+	(
+		g = for i in s where (isGroupHead i) and (not (isGroupMember i)) collect i
+		if(g[1] != undefined) do return g[1]	
+		if(s.count == 1 and s[1] != undefined) do return s[1]
+		return undefined
+	),
+
+	fn place m n =
+	(	
+		h = getNodeByName n	
+		if(h == undefined or m == undefined) do return #noplacer
+		
+		o = getObjectHead m
+		if(o == undefined) do return #error
+		
+		case classOf h of
+		(
+			Furn_Pos: placeFurnPos o h
+			default: return #unknown
+		)
+		
+		return #placed
 	)
 )
 
@@ -189,12 +307,15 @@ rollout _STEP1 "Settings"
 	(
 		articuls = getIniSetting ini
 		errors = #()
-		
+				
 		progressStart "Rendering..."
 		escapeEnable
 		
 		for i in 1 to articuls.count do
 		(
+			rendOutputFilename = ""
+			rendSaveFile = false
+			
 			CoronaRenderer.CoronaFp.stopRender()
 			
 			_NAME = articuls[i]
@@ -208,7 +329,7 @@ rollout _STEP1 "Settings"
 			
 			if(not doesFileExist _FILE) do 
 			(
-				append errors _FILE
+				append errors #(_FILE, "File not exist!")
 				continue
 			)
 						
@@ -227,20 +348,42 @@ rollout _STEP1 "Settings"
 			
 			model = selection
 			
+			pl = placeModel()
+			placeResult = pl.place model _POS			
+			case placeResult of
+			(	
+				#error: append errors #(_NAME, "Model not grouped!")
+				#noplacer: append errors #(_NAME, "Not found placer helper!")
+				#unknown: append errors #(_NAME, "Unknown typy of placer helper!")
+			)
+						
 			fopenexr.setAutoAddRenderElements true
 			rendSaveFile = true
 			rendOutputFilename = _OUT + _NAME + _TEXT + _EXT
-					
+								
 			c = cameras[1]
 			
 			if(c != undefined) then viewport.setCamera c
 						
-			max quick render
+			if(placeResult == #placed) do 
+			(
+				deleteFile rendOutputFilename
+				max quick render
+			)
 						
 			try(hide model)catch()
 		)
 		
-		progressEnd()	
+		resetMaxFile #noPrompt
+		
+		progressEnd()
+
+		if(errors.count != 0) do
+		(		
+			m = "Errors occurred while rendering!\r\n\r\n"			
+			for e in errors do m += e[1] + " - " + e[2] + "\r\n\r\n"
+			showLog m width: 500
+		)
 	)
 	
 	on _STEP1 open do
@@ -272,8 +415,10 @@ rollout _STEP1 "Settings"
 	
 	on btnStartRender pressed do
 	(
-		q = queryBox "Do you really want to start render?\n\nFor cancel hold button \"Esc\" and stop the render." title: "Confirm!"
+		q = queryBox "Do you really want to start render?" title: "Confirm!"
 		if(not q) do return false
+		
+		toggleUI _STEP1 enabled: false
 		
 		if(not (loadMainSceneFile load: #yes)) do return messageBox "Can't load Main Scene File!" title: "Error!"
 		if(loadServerModelsConfig() == undefined) do return messageBox "Can't load Server Models Config File!" title: "Error!"
@@ -281,6 +426,8 @@ rollout _STEP1 "Settings"
 						
 		ini = loadServerModelsConfig()			
 		startBatchRender ini
+			
+		toggleUI _STEP1 enabled: true 
 	)
 )
 
@@ -309,130 +456,6 @@ rollout _rAbout "About"
 addRollout _STEP1 fPlaceAndRender 
 addRollout _rAbout fPlaceAndRender rolledUp:true
 
-/* SCRIPTED HELPER */
 
-plugin Helper Furn_Pos_
-name: "Furn Pos" 
-classID: #(0x3aecc1d2, 0x375ea195)
-category:"Standard" 
-extends:dummy 
-category: "Place And Render"
-( 
-	local oldLenght, oldWidth, oldPivot, meshObj
-
-	parameters main rollout: params
-	(
-		width type:#worldUnits ui: spnWidth default: 1
-		length type:#worldUnits ui: spnLength  default: 1
-		pivotAligment type:#integer ui: rdoPivotAligment default: 5
-	)
-	
-	rollout params "Furn Parameters"
-	(
-		spinner spnWidth "Width:" range:[0, 1e9, 1]
-		spinner spnLength "Length:" range:[0, 1e9, 1]
-		
-		group "Pivot Aligment:"
-		(
-			radiobuttons rdoPivotAligment "" labels:#("", "", "", "", "", "", "", "", "") columns:3 default: 5
-		)
-	)
-	
-	fn transformMesh m tm =
-	(
-		for v in 1 to m.numverts do setVert m v ((getVert m v) * tm)
-		return m
-	)		
-	
-	fn arrow =
-	(
-		l = amin #(width, length)		
-		l = l / 20
-		
-		a = createInstance plane length: l width: (width/10) mapCoords:false lengthsegs: 1 widthsegs: 1 
-		m = a.mesh		
-		
-		setVert m 1 ((getVert m 1) + [a.width/2,0,0])
-		setVert m 2 ((getVert m 2) + [-a.width/2,0,0])
-		
-		return m
-	)
-	
-	fn pPoint =
-	(
-		l = amin #(width, length)		
-		l = l / 20
-		
-		a = createInstance cylinder radius: l height: 0
-		
-		m = a.mesh
-		
-		return m
-	)
-	
-	on getDisplayMesh do 
-	(			
-		if(oldLenght == length and oldWidth == width and  oldPivot == pivotAligment and meshObj != undefined) do return meshObj
-		
-		p = createInstance plane length: length width: width mapCoords:false lengthsegs: 2 widthsegs: 2 wirecolor: green
-					
-		oldLenght = p.length = length
-		oldWidth = p.width = width
-		oldPivot = pivotAligment
-		meshObj = p.mesh
-		
-		hw = width/2
-		hl = length/2
-		
-		tm = matrix3 1
-		tm.row4 = [0, -length/2-(length/8), 0]
-	
-		tmPivot = matrix3 1
-		case pivotAligment of
-		(
-			1: tmPivot.row4 = [hw, -hl, 0]
-			2: tmPivot.row4 = [0, -hl, 0]
-			3: tmPivot.row4 = [-hw, -hl, 0]
-			4: tmPivot.row4 = [hw, 0, 0]
-			6: tmPivot.row4 = [-hw, 0, 0]
-			7: tmPivot.row4 = [hw, hl, 0]
-			8: tmPivot.row4 = [0, hl, 0]
-			9: tmPivot.row4 = [-hw, hl, 0]
-			default: tmPivot.row4 = [0,0,0]
-		)
-		
-		
-		meshObj += transformMesh (arrow()) tm
-		meshObj += transformMesh (pPoint()) tmPivot
-		
-		
-		return meshObj
-	)
-	
-	on useWireColor do
-	(
-		return false
-	)
- 
-	tool create 
-	( 
-		on mousePoint click do 
-		(
-			case click of
-			(
-				1: nodeTM.translation = gridPoint
-				2: #stop 
-			)
-		)
-
-		on mouseMove click do
-		(
-			case click of
-			(
-				2: (width = abs gridDist.x * 2; length = abs gridDist.y * 2)
-			)
-		)
-	) 
-)
 
 
