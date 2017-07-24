@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.0.1
+VERSION = 1.0.2
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -23,6 +23,10 @@ ICON=#("PhysX_Main", 30)
 [1.0.1]
 
 + Added: Scripted Helper=
+
+[1.0.2]
+
+- BugFix: Error log message glitch=
 
 [ABOUT]
 
@@ -138,6 +142,36 @@ fn toggleUI r enabled: false skip: 0 =
 )
 
 global rShowLog
+
+
+fn getColor r g b = (dotnetclass "System.Drawing.Color").FromArgb r g b
+
+fn getBgColor = 
+(
+	b = (colorman.getcolor #background) * 255
+	c = getColor b[1] b[2] b[3]
+	return c
+)
+
+fn getTextColor =
+(
+	t = (colorMan.getColor #text) * 255
+	c = getColor t[1] t[2] t[3]
+	return c
+)
+
+fn initTextBox textBox =
+(
+	textBox.Font = dotNetObject "System.Drawing.Font" "MS Sans Serif" 8 ((dotNetClass "System.Drawing.FontStyle").Regular)
+	textBox.BorderStyle = (dotNetClass "System.Windows.Forms.BorderStyle").FixedSingle
+	textBox.BackColor = getBgColor()
+	textBox.ForeColor = getTextColor()
+	textBox.MultiLine = true
+	textBox.WordWrap = true
+	textBox.ScrollBars = (dotNetClass "System.Windows.Forms.ScrollBars").Vertical
+	textBox.ReadOnly = true
+)
+
 fn showLog m title:"Log" height: 295 width: 260 =
 (
 	
