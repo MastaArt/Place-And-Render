@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.0.2
+VERSION = 1.0.3
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -27,6 +27,10 @@ ICON=#("PhysX_Main", 30)
 [1.0.2]
 
 - BugFix: Error log message glitch=
+
+[1.0.3]
+
+- BugFix: Detect file exist=
 
 [ABOUT]
 
@@ -361,7 +365,7 @@ rollout _STEP1 "Settings"
 			progressUpdate (100.0 * i / articuls.count)						
 			if(getProgressCancel() == true) do exit	
 			
-			if(not doesFileExist _FILE) do 
+			if(not doesFileExist _FILE or findString _FILE ".max" == undefined) do 
 			(
 				append errors #(_FILE, "File not exist!")
 				continue
