@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.0.3
+VERSION = 1.0.4
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -31,6 +31,10 @@ ICON=#("PhysX_Main", 30)
 [1.0.3]
 
 - BugFix: Detect file exist=
+
+[1.0.4]
+
++ Added: setEXRSettings=
 
 [ABOUT]
 
@@ -341,6 +345,31 @@ rollout _STEP1 "Settings"
 		)
 	)
 	
+	fn setEXRSettings = 
+	(
+		-- Type and Format
+		t = 0
+		f = 0
+		
+		fopenexr.setAutoAddRenderElements false
+		fopenexr.SetCompression 2
+		fopenexr.setSaveScanline false
+		fopenexr.fopenexr.setSaveRegion false
+		fopenexr.setLayerOutputFormat 0 1
+		fopenexr.setLayerOutputType 0 1
+		
+		mgr = MaxOps.GetCurRenderElementMgr()
+
+		for x in 1 to mgr.NumRenderElements() do (
+			ele = (mgr.GetRenderElement (x-1))
+			fopenexr.addRenderElementLayerRef ele (ele.elementname as String) t f
+		)
+		
+		rendOutputFileName = rendOutputFileName
+		
+		renderSceneDialog.update()
+	)
+	
 	fn startBatchRender ini =
 	(
 		articuls = getIniSetting ini
@@ -395,9 +424,10 @@ rollout _STEP1 "Settings"
 				#unknown: append errors #(_NAME, "Unknown typy of placer helper!")
 			)
 						
-			fopenexr.setAutoAddRenderElements true
 			rendSaveFile = true
 			rendOutputFilename = _OUT + _NAME + _TEXT + _EXT
+			
+			setEXRSettings()
 								
 			c = cameras[1]
 			
