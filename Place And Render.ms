@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.0.4
+VERSION = 1.0.5
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -348,8 +348,8 @@ rollout _STEP1 "Settings"
 	fn setEXRSettings = 
 	(
 		-- Type and Format
-		t = 0
-		f = 0
+		t = 1
+		f = 1
 		
 		fopenexr.setAutoAddRenderElements false
 		fopenexr.SetCompression 2
