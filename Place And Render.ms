@@ -36,6 +36,10 @@ ICON=#("PhysX_Main", 30)
 
 + Added: setEXRSettings=
 
+[1.0.5]
+
+* Changed: Support positioner instances=
+
 [ABOUT]
 
 Batch render models in scene...=
@@ -216,6 +220,26 @@ fn showLog m title:"Log" height: 295 width: 260 =
 
 struct placeModel 
 (	
+	fn getObjectHead s =
+	(
+		g = for i in s where (isGroupHead i) and (not (isGroupMember i)) collect i
+		if(g[1] != undefined) do return g[1]	
+		if(s.count == 1 and s[1] != undefined) do return s[1]
+		return undefined
+	),
+	
+	fn getNodeList s =
+	(
+		nl = #()
+		for i in s do 
+		(	
+			append nl i
+			join nl i.children		
+		)
+		
+		return makeUniqueArray nl
+	),
+	
 	fn placeFurnPos m h =
 	(
 		hw = h.width/2
@@ -266,34 +290,43 @@ struct placeModel
 				newPos.y = 0
 			)
 		)
-		
+				
 		m.transform = h.transform 		
 		in coordsys m.transform move m newPos		
 	),	
-	
-	fn getObjectHead s =
+		
+	fn cloneObject o = 
 	(
-		g = for i in s where (isGroupHead i) and (not (isGroupMember i)) collect i
-		if(g[1] != undefined) do return g[1]	
-		if(s.count == 1 and s[1] != undefined) do return s[1]
-		return undefined
+		maxOps.cloneNodes o cloneType: #instance newNodes:&nnl #nodialog
+		return getObjectHead nnl
 	),
 
 	fn place m n =
 	(	
 		h = getNodeByName n	
-		if(h == undefined or m == undefined) do return #noplacer
-		
+		if(h == undefined or m == undefined) do return #(#noplacer)
+				
 		o = getObjectHead m
-		if(o == undefined) do return #error
+		if(o == undefined) do return #(#error)
+				
+		retObjects = #()
+		
+		placerInstances = #()
+		InstanceMgr.GetInstances h &placerInstances
 		
 		case classOf h of
 		(
-			Furn_Pos: placeFurnPos o h
-			default: return #unknown
+			Furn_Pos: (
+				for inst in placerInstances do (					
+					oo = cloneObject o
+					join retObjects (getNodeList oo)
+					placeFurnPos oo inst
+				)
+			)
+			default: return #(#unknown)
 		)
 		
-		return #placed
+		return #(#placed, retObjects)
 	)
 )
 
@@ -417,7 +450,7 @@ rollout _STEP1 "Settings"
 			
 			pl = placeModel()
 			placeResult = pl.place model _POS			
-			case placeResult of
+			case placeResult[1] of
 			(	
 				#error: append errors #(_NAME, "Model not grouped!")
 				#noplacer: append errors #(_NAME, "Not found placer helper!")
@@ -433,13 +466,13 @@ rollout _STEP1 "Settings"
 			
 			if(c != undefined) then viewport.setCamera c
 						
-			if(placeResult == #placed) do 
+			if(placeResult[1] == #placed) do 
 			(
 				deleteFile rendOutputFilename
 				max quick render
 			)
 						
-			try(hide model)catch()
+			try(hide placeResult[2])catch()
 		)
 		
 		resetMaxFile #noPrompt
