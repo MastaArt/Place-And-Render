@@ -40,6 +40,11 @@ ICON=#("PhysX_Main", 30)
 
 * Changed: Support positioner instances=
 
+[1.0.6]
+
+- BugFix: Not hide geometry if has error=
+* Improved: Delete hidden objects=
+
 [ABOUT]
 
 Batch render models in scene...=
@@ -403,6 +408,11 @@ rollout _STEP1 "Settings"
 		renderSceneDialog.update()
 	)
 	
+	fn deleteHidden = 
+	(
+		for obj in objects where obj.isHidden do try(delete obj)catch()
+	)
+	
 	fn startBatchRender ini =
 	(
 		articuls = getIniSetting ini
@@ -413,6 +423,8 @@ rollout _STEP1 "Settings"
 		
 		for i in 1 to articuls.count do
 		(
+			deleteHidden()
+			
 			rendOutputFilename = ""
 			rendSaveFile = false
 			
@@ -454,7 +466,7 @@ rollout _STEP1 "Settings"
 			(	
 				#error: append errors #(_NAME, "Model not grouped!")
 				#noplacer: append errors #(_NAME, "Not found placer helper!")
-				#unknown: append errors #(_NAME, "Unknown typy of placer helper!")
+				#unknown: append errors #(_NAME, "Unknown type of placer helper!")
 			)
 						
 			rendSaveFile = true
@@ -473,6 +485,7 @@ rollout _STEP1 "Settings"
 			)
 						
 			try(hide placeResult[2])catch()
+			try(hide model)catch()
 		)
 		
 		resetMaxFile #noPrompt
