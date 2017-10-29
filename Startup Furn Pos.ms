@@ -43,7 +43,7 @@ category: "Place And Render"
 	(
 		spinner spnWidth "Width:" range:[0, 1e9, 1]
 		spinner spnLength "Length:" range:[0, 1e9, 1]
-		
+				
 		group "Pivot Aligment:"
 		(
 			radiobuttons rdoPivotAligment "" labels:#("", "", "", "", "", "", "", "", "") columns:3 default: 5
@@ -87,7 +87,7 @@ category: "Place And Render"
 		if(oldLenght == length and oldWidth == width and  oldPivot == pivotAligment and meshObj != undefined) do return meshObj
 		
 		p = createInstance plane length: length width: width mapCoords:false lengthsegs: 2 widthsegs: 2 wirecolor: green
-					
+				
 		oldLenght = p.length = length
 		oldWidth = p.width = width
 		oldPivot = pivotAligment

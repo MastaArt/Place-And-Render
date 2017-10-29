@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.0.5
+VERSION = 1.0.7
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -42,8 +42,15 @@ ICON=#("PhysX_Main", 30)
 
 [1.0.6]
 
-- BugFix: Not hide geometry if has error=
+- BugFix: Not hide geometry if error occured=
 * Improved: Delete hidden objects=
+
+[1.0.7]
+
+* Improved: Opitmization=
++ Added: Cornise_Pos scripted helper support=
+* Imporved: Memory optimization=
+- BugFix: Exr Layers names=
 
 [ABOUT]
 
@@ -53,8 +60,6 @@ Batch render models in scene...=
 
 [SCRIPT]
 */	
-
-
 
 try(closeRolloutFloater fPlaceAndRender)catch()
 global fPlaceAndRender = newRolloutFloater "Place And Render" 280 300
@@ -223,6 +228,57 @@ fn showLog m title:"Log" height: 295 width: 260 =
 	createDialog rShowLog width height
 )
 
+fn getDirVector v1 v2 = return normalize (v1 - v2)
+fn stripName n = trimright n "-_0123456789"
+
+fn getNodesByName n cls: undefined = 
+(	
+	nl = for o in objects where (matchPattern o.name pattern: n) collect o
+	if(cls == undefined) do return nl
+	
+	return for o in nl where classOf o == cls collect o
+)
+
+fn getSliceType i =
+(
+	return case i of
+	(
+		2: -45
+		3: 0
+		default: 45			
+	)
+)
+
+fn addSlice g h t a = 
+(
+	sliceAngle = case a of 
+	(	
+		#end: getSliceType h.endSlice
+		default: getSliceType h.startSlice
+	)
+	
+	slicePos = case a of 
+	(	
+		#end: h.endPoint
+		default: h.startPoint
+	)
+	
+	m = sliceModifier() 
+	addModifier g m
+
+	objTM = g.objectTransform
+	modTM = getModContextTM g m
+	
+	rp = matrix3 1
+	preRotateY rp 90
+	preRotateZ rp -sliceAngle
+	
+	m.slice_plane.rotation = rp.rotationPart	
+	m.slice_plane.pos = slicePos * modTM * (inverse objTM)
+		
+	m.slice_type = t
+)
+
 struct placeModel 
 (	
 	fn getObjectHead s =
@@ -305,10 +361,115 @@ struct placeModel
 		maxOps.cloneNodes o cloneType: #instance newNodes:&nnl #nodialog
 		return getObjectHead nnl
 	),
+	
+	fn placeCornisePos m h =	
+	(
+		start = h.startPoint
+		end = h.endPoint
+		w = h.width
+		
+		g = snapshot m
+		m.isHidden = true
+		
+		g = convertToMesh g
+		g.isHidden = false
+
+		g.rotation.x = 0
+		g.rotation.y = 0
+		g.rotation.z = 0
+
+		g.pivot = g.center
+		g.pivot.x = g.min.x
+		
+		
+		case h.pivotAligment of
+		(
+			1: (
+				g.pivot.y = g.max.y
+				g.pivot.z = g.max.z
+			)
+			2: (
+				g.pivot.z = g.max.z
+			)
+			3: (
+				g.pivot.y = g.min.y
+				g.pivot.z = g.max.z
+			)
+			4: (
+				g.pivot.y = g.max.y
+			)
+			6: (
+				g.pivot.y = g.min.y
+			)
+			7: (
+				g.pivot.y = g.max.y
+				g.pivot.z = g.min.z
+			)
+			8: (
+				g.pivot.z = g.min.z
+			)
+			8: (
+				g.pivot.y = g.min.y
+				g.pivot.z = g.min.z
+			)
+		)
+		
+		gWidth = abs (g.max.x - g.min.x)
+
+		gBBox = #(abs(g.max.z - g.min.z),  abs (g.max.y - g.min.y))
+
+		gLength = abs(g.max.y - g.min.y)
+
+		try(update g)catch()
+			
+		tmm = h.trans
+			
+		preRotateY tmm -90
+		preRotateX tmm 90
+		preScale tmm  [1,-1,1]
+		preScale tmm  [1,1,-1]
+			
+		g.rotation = inverse tmm.rotationPart
+		g.pos = start
+
+		in coordsys g move g [-gLength,0,0]
+
+		k = (ceil ((w + gLength * 2) / gWidth)) as integer
+		
+		if(k > 1) do
+		(
+			attachList = #()
+			for i in 1 to k-1 do
+			(
+				ng = copy g
+				in coordsys g move ng [i * gWidth, 0,0]
+				
+				append attachList ng		
+			)
+			
+			for i in attachList do meshop.attach g i 
+		)
+
+		addSlice g h 2 #start
+		addSlice g h 3 #end
+
+		addModifier g (Cap_Holes())
+			
+		return g
+	),
 
 	fn place m n =
 	(	
-		h = getNodeByName n	
+		h = undefined
+		
+		if(findString n "*" != undefined) then
+		(
+			h = (getNodesByName n)[1]
+		) else (
+			h = getNodeByName n	
+		)
+		
+		
 		if(h == undefined or m == undefined) do return #(#noplacer)
 				
 		o = getObjectHead m
@@ -319,20 +480,42 @@ struct placeModel
 		placerInstances = #()
 		InstanceMgr.GetInstances h &placerInstances
 		
-		case classOf h of
+		cls = classOf h
+		
+		case cls of
 		(
 			Furn_Pos: (
 				for inst in placerInstances do (					
 					oo = cloneObject o
 					join retObjects (getNodeList oo)
 					placeFurnPos oo inst
-				)
+				)				
+			)
+			Cornice_Pos: (
+				placerList = getNodesByName n cls: cls
+				
+				for hh in placerList do (
+					no = placeCornisePos o hh
+					append retObjects no
+				)				
 			)
 			default: return #(#unknown)
 		)
 		
 		return #(#placed, retObjects)
 	)
+)
+
+fn deleteHidden = 
+(
+	undo off
+	(
+		o = for obj in objects where isValidNode obj and obj.isHidden and not isDeleted obj collect obj
+		
+		try(delete o) catch()		
+	)
+	
+	clearUndoBuffer()
 )
 
 rollout _STEP1 "Settings"
@@ -352,7 +535,7 @@ rollout _STEP1 "Settings"
 		edittext edtServerModelsConfig "" height: 25 readOnly: true
 		button btnSelectConfig "Select Config"
 	)
-	
+		
 	button btnStartRender "Start Render" width: 260 height: 35
 	
 	fn loadMainSceneFile load: #no=
@@ -381,6 +564,10 @@ rollout _STEP1 "Settings"
 			toggleUI _STEP1 skip: SKIP_2
 			if(loadServerModelsConfig() != undefined) do toggleUI _STEP1 skip: SKIP_3
 		)
+		
+		
+		callbacks.removeScripts id:#preRenderDelObjects
+		callbacks.addScript #preRender "deleteHidden()" id:#preRenderDelObjects
 	)
 	
 	fn setEXRSettings = 
@@ -393,14 +580,19 @@ rollout _STEP1 "Settings"
 		fopenexr.SetCompression 2
 		fopenexr.setSaveScanline false
 		fopenexr.fopenexr.setSaveRegion false
-		fopenexr.setLayerOutputFormat 0 1
-		fopenexr.setLayerOutputType 0 1
+		fopenexr.setLayerOutputFormat 0 f
+		fopenexr.setLayerOutputType 0 t
 		
 		mgr = MaxOps.GetCurRenderElementMgr()
 
 		for x in 1 to mgr.NumRenderElements() do (
 			ele = (mgr.GetRenderElement (x-1))
-			fopenexr.addRenderElementLayerRef ele (ele.elementname as String) t f
+			fopenexr.addRenderElementLayerRef ele (ele.elementname as string) t f			
+		)
+		
+		for x in 1 to fopenexr.numLayers() do (
+			n = fopenexr.getLayerName x			
+			fopenexr.setLayerOutputName x n
 		)
 		
 		rendOutputFileName = rendOutputFileName
@@ -408,101 +600,116 @@ rollout _STEP1 "Settings"
 		renderSceneDialog.update()
 	)
 	
-	fn deleteHidden = 
-	(
-		for obj in objects where obj.isHidden do try(delete obj)catch()
+	
+	fn hideObjects l = 
+	(	
+		if(l == undefined) do return false
+		for o in l where o != undefined and isValidNode o and not isDeleted o do o.isHidden = true
 	)
 	
 	fn startBatchRender ini =
 	(
-		articuls = getIniSetting ini
-		errors = #()
+		undo off (
+			articuls = getIniSetting ini
+			errors = #()
+					
+			progressStart "Rendering..."
+			escapeEnable
+			disableSceneRedraw()
+			
+			for i in 1 to articuls.count do
+			(
+				gc()
+				clearUndoBuffer()
+							
+				rendOutputFilename = ""
+				rendSaveFile = false
 				
-		progressStart "Rendering..."
-		escapeEnable
-		
-		for i in 1 to articuls.count do
-		(
-			deleteHidden()
-			
-			rendOutputFilename = ""
-			rendSaveFile = false
-			
-			CoronaRenderer.CoronaFp.stopRender()
-			
-			_NAME = articuls[i]
-			_FILE = getIniSetting ini _NAME "FILE"
-			_POS = getIniSetting ini _NAME "POS"
-			_TEXT = getIniSetting ini _NAME "TEXT"
-			_OUT = getIniSetting ini _NAME "OUT"
-						
-			progressUpdate (100.0 * i / articuls.count)						
-			if(getProgressCancel() == true) do exit	
-			
-			if(not doesFileExist _FILE or findString _FILE ".max" == undefined) do 
-			(
-				append errors #(_FILE, "File not exist!")
-				continue
+				CoronaRenderer.CoronaFp.stopRender()
+				
+				_NAME = articuls[i]
+				_FILE = getIniSetting ini _NAME "FILE"
+				_POS = getIniSetting ini _NAME "POS"
+				_TEXT = getIniSetting ini _NAME "TEXT"
+				_OUT = getIniSetting ini _NAME "OUT"
+							
+				progressUpdate (100.0 * i / articuls.count)						
+				if(getProgressCancel() == true) do exit	
+				
+				if(not doesFileExist _FILE or findString _FILE ".max" == undefined) do 
+				(
+					append errors #(_FILE, "File not exist!")
+					continue
+				)
+							
+				print _NAME
+				print _FILE
+				print _POS
+				print _TEXT
+				print _OUT
+				print _EXT
+				print "----"
+				
+				clearSelection()
+				mergeMAXFile _FILE  #select #autoRenameDups #renameMtlDups quiet: true 
+							
+				resolvePaths(_FILE)
+				
+				model = selection
+				
+				pl = placeModel()
+				placeResult = pl.place model _POS			
+				case placeResult[1] of
+				(	
+					#error: append errors #(_NAME, "Model not grouped!")
+					#noplacer: append errors #(_NAME, "Not found placer helper!")
+					#unknown: append errors #(_NAME, "Unknown type of placer helper!")
+				)
+							
+				rendSaveFile = true
+				rendOutputFilename = _OUT + _NAME + _TEXT + _EXT
+				
+				setEXRSettings()
+									
+				c = cameras[1]
+				
+				if(c != undefined) then viewport.setCamera c
+							
+				if(placeResult[1] == #placed) do 
+				(
+					deleteFile rendOutputFilename
+					max quick render
+				)
+					
+				hideObjects	placeResult[2]			
+				hideObjects model			
+				
+				--try(hide placeResult[2])catch()
+				--try(hide model)catch()
 			)
-						
-			print _NAME
-			print _FILE
-			print _POS
-			print _TEXT
-			print _OUT
-			print _EXT
-			print "----"
 			
-			clearSelection()
-			mergeMAXFile _FILE  #select #autoRenameDups #renameMtlDups quiet: true 
-						
-			resolvePaths(_FILE)
+			resetMaxFile #noPrompt
 			
-			model = selection
-			
-			pl = placeModel()
-			placeResult = pl.place model _POS			
-			case placeResult[1] of
-			(	
-				#error: append errors #(_NAME, "Model not grouped!")
-				#noplacer: append errors #(_NAME, "Not found placer helper!")
-				#unknown: append errors #(_NAME, "Unknown type of placer helper!")
-			)
-						
-			rendSaveFile = true
-			rendOutputFilename = _OUT + _NAME + _TEXT + _EXT
-			
-			setEXRSettings()
-								
-			c = cameras[1]
-			
-			if(c != undefined) then viewport.setCamera c
-						
-			if(placeResult[1] == #placed) do 
-			(
-				deleteFile rendOutputFilename
-				max quick render
-			)
-						
-			try(hide placeResult[2])catch()
-			try(hide model)catch()
-		)
-		
-		resetMaxFile #noPrompt
-		
-		progressEnd()
+			progressEnd()
+			enableSceneRedraw()
 
-		if(errors.count != 0) do
-		(		
-			m = "Errors occurred while rendering!\r\n\r\n"			
-			for e in errors do m += e[1] + " - " + e[2] + "\r\n\r\n"
-			showLog m width: 500
+			if(errors.count != 0) do
+			(		
+				m = "Errors occurred while rendering!\r\n\r\n"			
+				for e in errors do m += e[1] + " - " + e[2] + "\r\n\r\n"
+				showLog m width: 500
+			)
 		)
 	)
-	
+		
 	on _STEP1 open do
 	(
 		onOpen()
+	)
+	
+	on _STEP1 close do
+	(
+		callbacks.removeScripts id:#preRenderDelObjects
 	)
 	
 	on btnSelectScene pressed do
