@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.0.7
+VERSION = 1.0.8
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -51,6 +51,10 @@ ICON=#("PhysX_Main", 30)
 + Added: Cornise_Pos scripted helper support=
 * Imporved: Memory optimization=
 - BugFix: Exr Layers names=
+
+[1.0.8]
+
+- BugFix: Fatal error - Cornise with fiew objects=
 
 [ABOUT]
 
@@ -492,6 +496,8 @@ struct placeModel
 				)				
 			)
 			Cornice_Pos: (
+				if(m.count > 1) do return #(#corniseWrongGeom)
+				
 				placerList = getNodesByName n cls: cls
 				
 				for hh in placerList do (
@@ -664,6 +670,7 @@ rollout _STEP1 "Settings"
 					#error: append errors #(_NAME, "Model not grouped!")
 					#noplacer: append errors #(_NAME, "Not found placer helper!")
 					#unknown: append errors #(_NAME, "Unknown type of placer helper!")
+					#corniseWrongGeom: append errors #(_NAME, "Too many parts of model for cornise! Please attach it in to one object!")
 				)
 							
 				rendSaveFile = true
