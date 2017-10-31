@@ -60,7 +60,7 @@ ICON=#("PhysX_Main", 30)
 
 - BugFix: Exr output names=
 
-[1.1.0]
+[1.1.1]
 
 + Added: Updater system=
 
