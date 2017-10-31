@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.0.9
+VERSION = 1.1.1
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -59,6 +59,10 @@ ICON=#("PhysX_Main", 30)
 [1.0.9]
 
 - BugFix: Exr output names=
+
+[1.1.0]
+
++ Added: Updater system=
 
 [ABOUT]
 
@@ -779,6 +783,7 @@ rollout _rAbout "About"
 	
 	local c = color 200 200 200 
 	hyperLink href1 "http://3dground.net/" address: "http://3dground.net/" align: #center hoverColor: c visitedColor: c offset: [0, 20]
+	button btnUpdate "Update" offset: [0, 20] enabled: false
 	
 	on _rAbout open do
 	(		
@@ -788,6 +793,20 @@ rollout _rAbout "About"
 		lblAuthor.caption = i[2]
 		lblVer.caption = i[3]
 		lblCopy.caption = i[6]
+			
+		currPath = getFilenamePath (getThisScriptFileName())	
+			
+		if(doesFileExist (currPath + "InstallAndUpdate.ms")) do btnUpdate.enabled = true
+	)
+	
+	on btnUpdate pressed do 
+	(
+		currPath = getFilenamePath (getThisScriptFileName())
+		
+		try(
+			fileIn (currPath + "InstallAndUpdate.ms")
+			closeRolloutFloater fPlaceAndRender			
+		)catch()
 	)
 )
 
