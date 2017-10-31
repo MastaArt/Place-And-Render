@@ -1,9 +1,9 @@
 try(destroyDialog _rUpdater)catch()
-rollout _rUpdater "Update" width: 300 height: 300
+rollout _rUpdater "Install And Update" width: 300 height: 300
 (
 	dotNetControl lblTask "System.Windows.Forms.Label" height: 20
 	
-	button btnUpdate "Update To Latest Version" enabled: false height: 30 offset: [0, 10]
+	button btnUpdate "Install/Update To Latest Version" enabled: true height: 30 offset: [0, 10]
 	dotNetControl edtNotes "System.Windows.Forms.Textbox" width: 298 height: 212 align:#center offset: [0, 10]
 	
 	fn getColor r g b = (dotnetclass "System.Drawing.Color").FromArgb r g b
