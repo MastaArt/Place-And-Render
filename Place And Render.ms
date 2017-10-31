@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.0.9
+VERSION = 1.0.8
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -55,10 +55,6 @@ ICON=#("PhysX_Main", 30)
 [1.0.8]
 
 - BugFix: Fatal error - Cornise with fiew objects=
-
-[1.0.9]
-
-- BugFix: Exr output names=
 
 [ABOUT]
 
@@ -467,7 +463,7 @@ struct placeModel
 	),
 
 	fn place m n =
-	(					
+	(	
 		h = undefined
 		
 		if(findString n "*" != undefined) then
@@ -500,8 +496,7 @@ struct placeModel
 				)				
 			)
 			Cornice_Pos: (
-				if(m.count > 1 or superClassOf m[1] != GeometryClass) do return #(#corniseWrongGeom)
-				
+				if(m.count > 1) do return #(#corniseWrongGeom)
 				
 				placerList = getNodesByName n cls: cls
 				
@@ -581,13 +576,7 @@ rollout _STEP1 "Settings"
 		callbacks.addScript #preRender "deleteHidden()" id:#preRenderDelObjects
 	)
 	
-	fn getRenderElements = 
-	(
-		mgr = MaxOps.GetCurRenderElementMgr()
-		return for x in 1 to mgr.NumRenderElements() collect (mgr.GetRenderElement (x-1))
-	)
-	
-	fn setEXRSettings rendElements = 
+	fn setEXRSettings = 
 	(
 		-- Type and Format
 		t = 1
@@ -600,7 +589,10 @@ rollout _STEP1 "Settings"
 		fopenexr.setLayerOutputFormat 0 f
 		fopenexr.setLayerOutputType 0 t
 		
-		for ele in rendElements do (
+		mgr = MaxOps.GetCurRenderElementMgr()
+
+		for x in 1 to mgr.NumRenderElements() do (
+			ele = (mgr.GetRenderElement (x-1))
 			fopenexr.addRenderElementLayerRef ele (ele.elementname as string) t f			
 		)
 		
@@ -626,8 +618,6 @@ rollout _STEP1 "Settings"
 		undo off (
 			articuls = getIniSetting ini
 			errors = #()
-			
-			rendElements = getRenderElements()
 					
 			progressStart "Rendering..."
 			escapeEnable
@@ -680,13 +670,13 @@ rollout _STEP1 "Settings"
 					#error: append errors #(_NAME, "Model not grouped!")
 					#noplacer: append errors #(_NAME, "Not found placer helper!")
 					#unknown: append errors #(_NAME, "Unknown type of placer helper!")
-					#corniseWrongGeom: append errors #(_FILE, "Too many parts of model for cornise! Please attach it in to one object!")
+					#corniseWrongGeom: append errors #(_NAME, "Too many parts of model for cornise! Please attach it in to one object!")
 				)
 							
 				rendSaveFile = true
 				rendOutputFilename = _OUT + _NAME + _TEXT + _EXT
 				
-				setEXRSettings rendElements
+				setEXRSettings()
 									
 				c = cameras[1]
 				
