@@ -187,7 +187,7 @@ rollout _rUpdater "Update" width: 300 height: 300
 				v = getIniSetting updTmpFile "FILES" f
 				
 				setTask	msg: ("Download: " + f)
-				
+				print ("Download: " + f)
 				
 				j = true
 				
