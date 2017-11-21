@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.1.1
+VERSION = 1.1.2
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -63,6 +63,10 @@ ICON=#("PhysX_Main", 30)
 [1.1.1]
 
 + Added: Updater system=
+
+[1.1.2]
+
+- BugFix: Load main scene for each render picture=
 
 [ABOUT]
 
@@ -582,7 +586,7 @@ rollout _STEP1 "Settings"
 		
 		
 		callbacks.removeScripts id:#preRenderDelObjects
-		callbacks.addScript #preRender "deleteHidden()" id:#preRenderDelObjects
+		--callbacks.addScript #preRender "deleteHidden()" id:#preRenderDelObjects
 	)
 	
 	fn getRenderElements = 
@@ -639,6 +643,8 @@ rollout _STEP1 "Settings"
 			
 			for i in 1 to articuls.count do
 			(
+				loadMainSceneFile load: #yes
+				
 				gc()
 				clearUndoBuffer()
 							
