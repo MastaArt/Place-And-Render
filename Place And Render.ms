@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.1.2
+VERSION = 1.1.3
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -67,6 +67,10 @@ ICON=#("PhysX_Main", 30)
 [1.1.2]
 
 - BugFix: Load main scene for each render picture=
+
+[1.1.3]
+
+- BugFix: Render element saved in separate files=
 
 [ABOUT]
 
@@ -634,16 +638,17 @@ rollout _STEP1 "Settings"
 		undo off (
 			articuls = getIniSetting ini
 			errors = #()
-			
-			rendElements = getRenderElements()
+					
 					
 			progressStart "Rendering..."
 			escapeEnable
 			disableSceneRedraw()
 			
 			for i in 1 to articuls.count do
-			(
+			(								
 				loadMainSceneFile load: #yes
+				
+				rendElements = getRenderElements()
 				
 				gc()
 				clearUndoBuffer()
