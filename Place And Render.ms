@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = Place And Render
-VERSION = 1.1.3
+VERSION = 1.1.4
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -71,6 +71,11 @@ ICON=#("PhysX_Main", 30)
 [1.1.3]
 
 - BugFix: Render element saved in separate files=
+
+[1.1.4]
+
+- BugFix: Render elements names in PSD=
+
 
 [ABOUT]
 
@@ -563,11 +568,19 @@ rollout _STEP1 "Settings"
 	
 	fn loadMainSceneFile load: #no=
 	(
+		rendOutputFilename = ""
+		rendSaveFile = false
+		renderSceneDialog.update()
+		
 		f = useSettings "MAIN_SCENE_FILE" "string" "r"
 		if(not doesFileExist f) do return false		
 		edtMainSceneFile.text = f
 		if(load == #yes) do loadMaxFile f useFileUnits: true quiet: true
 		return true
+		
+		rendOutputFilename = ""
+		rendSaveFile = false
+		renderSceneDialog.update()
 	)
 	
 	fn loadServerModelsConfig =
@@ -593,18 +606,21 @@ rollout _STEP1 "Settings"
 		--callbacks.addScript #preRender "deleteHidden()" id:#preRenderDelObjects
 	)
 	
-	fn getRenderElements = 
+	fn getRendElements = 
 	(
 		mgr = MaxOps.GetCurRenderElementMgr()
 		return for x in 1 to mgr.NumRenderElements() collect (mgr.GetRenderElement (x-1))
 	)
 	
-	fn setEXRSettings rendElements = 
+	fn setEXRSettings = 
 	(
+		rendElements = getRendElements()
+		
 		-- Type and Format
 		t = 1
 		f = 1
 		
+		fopenexr.setDefaults ()
 		fopenexr.setAutoAddRenderElements false
 		fopenexr.SetCompression 2
 		fopenexr.setSaveScanline false
@@ -616,9 +632,11 @@ rollout _STEP1 "Settings"
 			fopenexr.addRenderElementLayerRef ele (ele.elementname as string) t f			
 		)
 		
-		for x in 1 to fopenexr.numLayers() do (
-			n = fopenexr.getLayerName x			
-			fopenexr.setLayerOutputName x n
+		for x in 1 to fopenexr.numLayers() where rendElements[x] != undefined do (					
+			n = rendElements[x].elementname
+			fopenexr.setLayerOutputName x n			
+			
+			renderSceneDialog.update()
 		)
 		
 		rendOutputFileName = rendOutputFileName
@@ -647,14 +665,13 @@ rollout _STEP1 "Settings"
 			for i in 1 to articuls.count do
 			(								
 				loadMainSceneFile load: #yes
-				
-				rendElements = getRenderElements()
-				
+												
 				gc()
 				clearUndoBuffer()
 							
 				rendOutputFilename = ""
 				rendSaveFile = false
+				renderSceneDialog.update()
 				
 				CoronaRenderer.CoronaFp.stopRender()
 				
@@ -700,8 +717,9 @@ rollout _STEP1 "Settings"
 							
 				rendSaveFile = true
 				rendOutputFilename = _OUT + _NAME + _TEXT + _EXT
+				renderSceneDialog.update()
 				
-				setEXRSettings rendElements
+				setEXRSettings()
 									
 				c = cameras[1]
 				
