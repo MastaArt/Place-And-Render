@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = HomeLook Placer
-VERSION = 1.0.0
+VERSION = 1.0.1
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -13,6 +13,10 @@ HELP =
 
 * First release =
 
+[1.0.1]
+
++ Added:  Updater Support=
++ Added:  Work with instances=
 
 [ABOUT]
 
@@ -36,6 +40,7 @@ category: "HomeLook Placer"
 	local oldLenght, oldWidth, oldPivot, meshObj
 	local iniSetting = getFileNamePath (getThisScriptFileName()) + "HomeLookPlacer.ini"
 	local lastMdl = ""
+	
 
 	parameters main rollout: params
 	(
@@ -122,6 +127,24 @@ category: "HomeLook Placer"
 			return undefined
 		)
 		
+		fn cloneObject o = 
+		(
+			maxOps.cloneNodes o cloneType: #instance newNodes:&nnl #nodialog
+			return getObjectHead nnl
+		)
+		
+		fn getNodeList s =
+		(
+			nl = #()
+			for i in s do 
+			(	
+				append nl i
+				join nl i.children		
+			)
+			
+			return makeUniqueArray nl
+		)
+		
 		on btnLoadModel pressed do
 		(
 			local s = selection[1]
@@ -140,11 +163,25 @@ category: "HomeLook Placer"
 			mergeMAXFile f #select 
 			
 			local h = getObjectHead selection
-			
+			local orig = selection
 			if(h == undefined) do return false
 			
 			
-			placeFurnPos h s			
+			local placerInstances = #()
+			InstanceMgr.GetInstances s &placerInstances
+				
+			local retObjects = #()
+
+			for inst in placerInstances do (					
+				oo = cloneObject h
+				join retObjects (getNodeList oo)
+				placeFurnPos oo inst
+			)	
+			
+			delete orig
+			
+			group retObjects name: ("Group-" + s.name)
+										
 		)
 		
 		on params open do
