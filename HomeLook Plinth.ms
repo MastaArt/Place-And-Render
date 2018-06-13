@@ -2,7 +2,7 @@
 [INFO] 
 
 NAME = HomeLook Plinth
-VERSION = 1.0.0
+VERSION = 1.0.3
 AUTHOR = Vasily Lukyanenko
 DEV = 3DGROUND
 CUSTOMER = Rehin Roman
@@ -16,6 +16,10 @@ HELP =
 [1.0.2]
 
 +Added: Name Type =
+
+[1.0.3]
+
+-BugFix: 3Ds Max  Fatal Error=
 
 
 [ABOUT]
@@ -44,11 +48,11 @@ category: "HomeLook Placer"
 	
 	fn getDefaultNameType = (
 		v = getIniSetting iniSetting "FURNPLACER" "NAME"
-		return v
+		return v		
 	)	
 			
 	parameters main rollout: params
-	(		
+	(	
 		width type:#worldUnits ui: spnWidth default: 1
 		startPoint type:#point3 default: [0,0,0]
 		endPoint type:#point3  default: [0,0,0]
@@ -61,11 +65,11 @@ category: "HomeLook Placer"
 		endSlice type: #integer ui: ddlEndSlice default: 2	
 		
 		nameType type: #string ui: edtNameType default: "SET NAME TYPE!"
-			
+		/*		
 		on nameType get v do
 		(
 			if(v == "" or v == "SET NAME TYPE!") then getDefaultNameType() else v
-		)
+		)*/
 	)
 	
 	rollout params "Furn Parameters"
@@ -94,7 +98,7 @@ category: "HomeLook Placer"
 		(
 			button btnLoadModel "Open" width: 133 height: 35
 		)
-				
+			
 		fn getNodesByName n cls: undefined = 
 		(	
 			nl = for o in objects where (matchPattern o.name pattern: n) collect o
@@ -120,7 +124,7 @@ category: "HomeLook Placer"
 				default: 45			
 			)
 		)
-		
+			
 		fn addSlice g h t a = 
 		(
 			sliceAngle = case a of 
@@ -170,7 +174,7 @@ category: "HomeLook Placer"
 			g.pivot = g.center
 			g.pivot.x = g.min.x
 			
-			
+			print  ( h.pivotAligment )
 			case h.pivotAligment of
 			(
 				default: (
@@ -186,7 +190,11 @@ category: "HomeLook Placer"
 				)
 				4: (
 					g.pivot.y = g.max.y
-				)
+				)	
+				5: (
+					g.pivot = g.center
+					g.pivot.x = g.min.x
+				)				
 				6: (
 					g.pivot.y = g.min.y
 				)
@@ -197,7 +205,7 @@ category: "HomeLook Placer"
 				8: (
 					g.pivot.z = g.min.z
 				)
-				8: (
+				9: (
 					g.pivot.y = g.min.y
 					g.pivot.z = g.min.z
 				)
@@ -274,6 +282,8 @@ category: "HomeLook Placer"
 				
 		on btnLoadModel pressed do
 		(
+			if(edtNameType.text == "" or edtNameType.text == "SET NAME TYPE!") do return messageBox "Please set name type!" title: "Warning!"
+			
 			local s = self()
 			lastMdl = getIniSetting iniSetting "FURNPLACER" "LASTMDL"
 			if(classOf s != PlinthPlacer) do return false 
@@ -459,6 +469,7 @@ category: "HomeLook Placer"
  
 	tool create 
 	( 
+		
 		on mousePoint click do 
 		(					
 			case click of
