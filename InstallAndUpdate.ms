@@ -158,12 +158,21 @@ rollout _rUpdater "Install And Update" width: 300 height: 300
 		
 		fn downloadFile url dl=
 		(
+			try(setFileAttribute dl #readOnly false) catch()
 			deleteFile dl
+			
 			w = dotNetObject "System.Net.WebClient"
-			try(
-				w.DownloadFile (url + "?time=" + timestamp() as string) dl
+			uri = url + "?time=" + timestamp() as string
+			uri = substituteString uri " " "%20"
+						
+			try(				
+				w.DownloadFile uri dl				
+				print ("Downloaded: " + uri)
+				
 				return dl
 			) catch(
+				print ("Error download: " + uri + " | " + dl)
+				
 				return #red
 			)
 		),
@@ -282,7 +291,8 @@ rollout _rUpdater "Install And Update" width: 300 height: 300
 		upd.init()
 		p = upd.downloadPackage()
 		print p		
-
+	
+		
 		if(p == false) then (
 			setTask	msg: "Updates have been installed!" type: #green
 			
